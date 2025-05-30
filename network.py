@@ -7,13 +7,12 @@ from messages import MessageHandler
 logger = logging.getLogger(__name__)
 
 class NetworkManager:
-    def __init__(self, local_ip, port, router):
+    def __init__(self, local_ip, port):
         self.local_ip = local_ip
         self.port = port
-        self.router = router
-        self.socket = None
-        self.running = False
-        self.message_handler = MessageHandler()
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.bind((local_ip, port))
+        self.running = True
 
     def start_server(self):
         try:
@@ -28,7 +27,7 @@ class NetworkManager:
             while self.running:
                 try:
                     data, addr = self.socket.recvfrom(1024)
-                    self._handle_message(data, addr)
+                    self.handle_message(data, addr)
                 except socket.timeout:
                     continue
                 except Exception as e:
@@ -38,12 +37,37 @@ class NetworkManager:
         except Exception as e:
             logger.error(f"Erro ao iniciar servidor: {e}")
         finally:
-            self._cleanup_socket()
+            self.cleanup_socket()
+
+    #envia ping pro vizinho
+    def send_ping(self, dest_ip):
+        try:
+            message = f"PING from {self.local_ip}"
+            self.socket.sendto(message.encode(), (dest_ip, self.port))
+            return True
+        except Exception as e:
+            logger.error(f"Error sending ping to {dest_ip}: {e}")
+            return False
+
+    def start_server(self):
+        def receive_loop():
+            while self.running:
+                try:
+                    data, addr = self.socket.recvfrom(1024)
+                    if data.decode().startswith("PING"):
+                        response = f"PONG from {self.local_ip}"
+                        self.socket.sendto(response.encode(), addr)
+                except Exception as e:
+                    if self.running:
+                        logger.error(f"Receive error: {e}")
+
+        threading.Thread(target=receive_loop, daemon=True).start()
+
 
     #para o servidor UDP
     def stop_server(self):
         self.running = False
-        self._cleanup_socket()
+        self.cleanup_socket()
         logger.info("Servidor UDP parado")
 
     #fechando socket
@@ -56,7 +80,7 @@ class NetworkManager:
             self.socket = None
 
     # Processa mensagem recebida
-    def _handle_message(self, data, addr):
+    def handle_message(self, data, addr):
         try:
             message = self.message_handler.decode(data)
             sender_ip = addr[0]
@@ -66,15 +90,39 @@ class NetworkManager:
             # Processa os tipos de mensagem
             msg_type = message.get('type')
             
-            if msg_type == 'route_update':
-                self._handle_route_update(sender_ip, message)
+            if msg_type == 'ping':
+                self.handle_ping(sender_ip, message)
+            elif msg_type == 'pong':
+                self.handle_pong(sender_ip, message)
+            elif msg_type == 'route_update':
+                self.handle_route_update(sender_ip, message)
             elif msg_type == 'trace_request':
-                self._handle_trace_request(sender_ip, message)
+                self.handle_trace_request(sender_ip, message)
             else:
                 logger.warning(f"Tipo de mensagem desconhecido: {msg_type}")
                 
         except Exception as e:
             logger.error(f"Erro ao processar mensagem de {addr}: {e}")
+
+    #responde pong
+    def handle_ping(self, sender_ip, message):
+        response = {
+            'type': 'pong',
+            'sender': self.local_ip,
+            'timestamp': time.time()
+        }
+        success = self.send_message(sender_ip, response)
+        if success:
+            logger.debug(f"Pong enviado para {sender_ip}")
+        
+        # Update neighbor timestamp when we receive ping
+        self.router.update_neighbor_timestamp(sender_ip)
+
+    #processa ping
+    def handle_pong(self, sender_ip, message):
+        logger.debug(f"Pong recebido de {sender_ip}")
+        self.router.update_neighbor_timestamp(sender_ip)
+    
 
     #Processa atualização de rota
     def handle_route_update(self, sender_ip, message):
@@ -128,6 +176,31 @@ class NetworkManager:
             logger.error(f"Erro ao enviar mensagem para {dest_ip}: {e}")
             return False
     
+    def test_connection(self, dest_ip, port=None):
+        if port is None:
+            port = self.port
+            
+        try:
+            ping_msg = {
+                'type': 'ping',
+                'sender': self.local_ip,
+                'timestamp': time.time()
+            }
+            
+            # Envia ping
+            success = self.send_message(dest_ip, ping_msg)
+            if not success:
+                return False
+            
+            # Aguarda resposta (simples implementação)
+            # Em implementação mais robusta, usaria callbacks ou threads
+            time.sleep(0.1)
+            return True
+            
+        except Exception as e:
+            logger.debug(f"Teste de conexão falhou para {dest_ip}: {e}")
+            return False
+
     #Envia mensagem para todos os vizinhos
     def broadcast_to_neighbors(self, message):
         neighbors = self.router.get_neighbors()

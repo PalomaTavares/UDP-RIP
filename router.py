@@ -9,33 +9,34 @@ class Router:
     def __init__(self, local_ip):
         self.local_ip = local_ip
         self.neighbors = {}  # {ip: weight}
-        self.routing_table = {}  # {destination: (next_hop, cost)}
-        self.last_update = {}  # {neighbor_ip: timestamp}
-        self.lock = threading.Lock()
-        
-        # Configurações
-        self.NEIGHBOR_TIMEOUT = 30  # segundos
-        self.UPDATE_INTERVAL = 10   # segundos
-        
-        # Inicia timer para limpeza de vizinhos expirados
-        self._start_cleanup_timer()
+        self.lock = threading.Lock()  # Add this line for thread safety
+
     
     #add vizinho com peso
     def add_neighbor(self, neighbor_ip, weight):
+        if neighbor_ip == self.local_ip:
+            logger.error("Cannot add self as neighbor")
+            return False
+        
+        if not neighbor_ip.startswith("127.0.1."):
+            logger.error("Invalid IP address (must be in 127.0.1.0/24 range)")
+            return False
+        
+        
         try:
-            with self.lock:
+            weight = float(weight)
+            if weight <= 0:
+                logger.error("Weight must be positive")
+                return False
+                
+            with self.lock:  # Use the lock for thread-safe operations
                 self.neighbors[neighbor_ip] = weight
-                self.last_update[neighbor_ip] = time.time()
                 
-                # Adiciona rota direta para o vizinho
-                self.routing_table[neighbor_ip] = (neighbor_ip, weight)
-                
-            logger.info(f"Vizinho {neighbor_ip} adicionado com peso {weight}")
-            self._recalculate_routes()
+            logger.info(f"Added neighbor {neighbor_ip} with weight {weight}")
             return True
             
-        except Exception as e:
-            logger.error(f"Erro ao adicionar vizinho {neighbor_ip}: {e}")
+        except ValueError:
+            logger.error("Invalid weight (must be a number)")
             return False
     
     def remove_neighbor(self, neighbor_ip):
@@ -55,7 +56,7 @@ class Router:
                         del self.routing_table[dest]
                     
                     logger.info(f"Vizinho {neighbor_ip} removido")
-                    self._recalculate_routes()
+                    self.recalculate_routes()
                     return True
                 else:
                     return False
@@ -64,6 +65,15 @@ class Router:
             logger.error(f"Erro ao remover vizinho {neighbor_ip}: {e}")
             return False
     
+    #recebeu ping ou pong
+    def update_neighbor_timestamp(self, neighbor_ip):
+            with self.lock:
+                if neighbor_ip in self.neighbors:
+                    self.last_update[neighbor_ip] = time.time()
+                    logger.debug(f"Timestamp atualizado para vizinho {neighbor_ip}")
+                    return True
+            return False
+
     #Retorna cópia da tabela de vizinhos
     def get_neighbors(self):
         with self.lock:
@@ -109,7 +119,7 @@ class Router:
                         logger.debug(f"Rota atualizada: {dest} via {sender_ip} (custo {new_cost})")
                 
                 if updated:
-                    self._recalculate_routes()
+                    self.recalculate_routes()
                     
         except Exception as e:
             logger.error(f"Erro ao processar atualização de {sender_ip}: {e}")
@@ -147,7 +157,7 @@ class Router:
             return None
     
     # Recalcula tabela de roteamento (Dijkstra simplificado)
-    def _recalculate_routes(self):
+    def recalculate_routes(self):
         try:
             # Implementação básica - pode ser melhorada com Dijkstra completo
             # Por agora, mantém lógica Distance Vector simples
@@ -157,7 +167,7 @@ class Router:
             logger.error(f"Erro ao recalcular rotas: {e}")
     
     #Remove vizinhos que não respondem há muito tempo
-    def _cleanup_expired_neighbors(self):
+    def cleanup_expired_neighbors(self):
         try:
             current_time = time.time()
             expired = []
@@ -175,11 +185,11 @@ class Router:
             logger.error(f"Erro na limpeza de vizinhos: {e}")
            
     #Inicia timer periódico para limpeza
-    def _start_cleanup_timer(self):
+    def start_cleanup_timer(self):
         def cleanup_loop():
             while True:
                 time.sleep(self.UPDATE_INTERVAL)
-                self._cleanup_expired_neighbors()
+                self.cleanup_expired_neighbors()
         
         cleanup_thread = threading.Thread(target=cleanup_loop, daemon=True)
         cleanup_thread.start()

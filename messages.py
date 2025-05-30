@@ -7,8 +7,8 @@ class MessageHandler:
     def __init__(self):
         self.max_message_size = 1024
     
+    #mensagem python para bytes JSON
     def encode(self, message):
-        """Codifica mensagem Python para bytes JSON"""
         try:
             json_str = json.dumps(message, ensure_ascii=False)
             data = json_str.encode('utf-8')
@@ -22,8 +22,8 @@ class MessageHandler:
             logger.error(f"Erro ao codificar mensagem: {e}")
             raise
     
+    #JSON para Python"
     def decode(self, data):
-        """Decodifica bytes JSON para mensagem Python"""
         try:
             json_str = data.decode('utf-8')
             message = json.loads(json_str)
@@ -42,7 +42,6 @@ class MessageHandler:
             raise
     
     def create_ping_message(self, sender_ip):
-        """Cria mensagem de ping"""
         return {
             'type': 'ping',
             'sender': sender_ip,
@@ -50,7 +49,6 @@ class MessageHandler:
         }
     
     def create_pong_message(self, sender_ip):
-        """Cria mensagem de pong"""
         return {
             'type': 'pong',
             'sender': sender_ip,
@@ -58,7 +56,6 @@ class MessageHandler:
         }
     
     def create_route_update_message(self, sender_ip, routes):
-        """Cria mensagem de atualização de rotas"""
         return {
             'type': 'route_update',
             'sender': sender_ip,
@@ -67,7 +64,6 @@ class MessageHandler:
         }
     
     def create_trace_request_message(self, sender_ip, destination, trace_id, path=None):
-        """Cria mensagem de requisição de trace"""
         return {
             'type': 'trace_request',
             'sender': sender_ip,
@@ -78,7 +74,6 @@ class MessageHandler:
         }
     
     def create_trace_response_message(self, sender_ip, trace_id, path, destination_reached=False):
-        """Cria mensagem de resposta de trace"""
         return {
             'type': 'trace_response',
             'sender': sender_ip,
@@ -89,7 +84,6 @@ class MessageHandler:
         }
     
     def create_error_message(self, sender_ip, error_type, error_msg):
-        """Cria mensagem de erro"""
         return {
             'type': 'error',
             'sender': sender_ip,
@@ -99,7 +93,6 @@ class MessageHandler:
         }
     
     def validate_message(self, message):
-        """Valida estrutura da mensagem"""
         required_fields = ['type', 'sender', 'timestamp']
         
         for field in required_fields:
@@ -129,8 +122,7 @@ class MessageHandler:
         
         return True
     
-    def _get_timestamp(self):
-        """Retorna timestamp atual"""
+    def get_timestamp(self):
         import time
         return time.time()
     
