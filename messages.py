@@ -22,7 +22,7 @@ class MessageHandler:
             logger.error(f"Erro ao codificar mensagem: {e}")
             raise
     
-    #JSON para Python"
+    #JSON para Python
     def decode(self, data):
         try:
             json_str = data.decode('utf-8')
@@ -41,59 +41,47 @@ class MessageHandler:
             logger.error(f"Erro ao decodificar mensagem: {e}")
             raise
     
-    def create_ping_message(self, sender_ip):
+    def create_conection_message(self, src_ip, dst_ip, weight):
         return {
-            'type': 'ping',
-            'sender': sender_ip,
-            'timestamp': self._get_timestamp()
+            'type': 'connection',
+            'source': src_ip,
+            'destination': dst_ip,
+            'weight': weight
         }
     
-    def create_pong_message(self, sender_ip):
+    def create_disconection_message(self, src_ip, dst_ip):
         return {
-            'type': 'pong',
-            'sender': sender_ip,
-            'timestamp': self._get_timestamp()
+            'type': 'disconnection',
+            'source': src_ip,
+            'destination': dst_ip
         }
     
-    def create_route_update_message(self, sender_ip, routes):
+    def create_data_message(self, src_ip, dst_ip, payload):
         return {
-            'type': 'route_update',
-            'sender': sender_ip,
-            'timestamp': self._get_timestamp(),
-            'routes': routes
+            'type': 'data',
+            'source': src_ip,
+            'destination': dst_ip,
+            'payload': payload
         }
     
-    def create_trace_request_message(self, sender_ip, destination, trace_id, path=None):
+    def create_update_message(self, src_ip, dst_ip, distances):
         return {
-            'type': 'trace_request',
-            'sender': sender_ip,
-            'destination': destination,
-            'trace_id': trace_id,
-            'path': path or [sender_ip],
-            'timestamp': self._get_timestamp()
+            'type': 'update',
+            'source': src_ip,
+            'destination': dst_ip,
+            'distances': distances
         }
     
-    def create_trace_response_message(self, sender_ip, trace_id, path, destination_reached=False):
+    def create_trace_message(self, src_ip, dst_ip, routers):
         return {
-            'type': 'trace_response',
-            'sender': sender_ip,
-            'trace_id': trace_id,
-            'path': path,
-            'destination_reached': destination_reached,
-            'timestamp': self._get_timestamp()
-        }
-    
-    def create_error_message(self, sender_ip, error_type, error_msg):
-        return {
-            'type': 'error',
-            'sender': sender_ip,
-            'error_type': error_type,
-            'error_message': error_msg,
-            'timestamp': self._get_timestamp()
+            'type': 'trace',
+            'source': src_ip,
+            'destination': dst_ip,
+            'routers': routers
         }
     
     def validate_message(self, message):
-        required_fields = ['type', 'sender', 'timestamp']
+        required_fields = ['type', 'source', 'destination']
         
         for field in required_fields:
             if field not in message:
@@ -102,41 +90,35 @@ class MessageHandler:
         # Validações específicas por tipo
         msg_type = message['type']
         
-        if msg_type == 'route_update':
-            if 'routes' not in message:
+        if msg_type == "data":
+            if 'payload' not in message:
+                raise ValueError("Mensagem data deve ter campo 'payload'")
+            
+        elif msg_type == 'update':
+            if 'distances' not in message:
                 raise ValueError("Mensagem route_update deve ter campo 'routes'")
             if not isinstance(message['routes'], dict):
                 raise ValueError("Campo 'routes' deve ser um dicionário")
         
-        elif msg_type == 'trace_request':
+        elif msg_type == 'trace':
             required = ['destination', 'trace_id', 'path']
             for field in required:
                 if field not in message:
                     raise ValueError(f"trace_request deve ter campo '{field}'")
         
-        elif msg_type == 'trace_response':
-            required = ['trace_id', 'path', 'destination_reached']
-            for field in required:
-                if field not in message:
-                    raise ValueError(f"trace_response deve ter campo '{field}'")
-        
         return True
     
-    def get_timestamp(self):
-        import time
-        return time.time()
-    
+    #formata o log
     def format_message_for_log(self, message):
-        """Formata mensagem para log"""
         try:
             msg_type = message.get('type', 'unknown')
             sender = message.get('sender', 'unknown')
             
-            if msg_type == 'route_update':
+            if msg_type == 'update':
                 routes_count = len(message.get('routes', {}))
                 return f"{msg_type} from {sender} ({routes_count} routes)"
             
-            elif msg_type in ['trace_request', 'trace_response']:
+            elif msg_type == 'trace':
                 dest = message.get('destination', message.get('trace_id', 'unknown'))
                 return f"{msg_type} from {sender} (dest: {dest})"
             
