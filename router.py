@@ -69,12 +69,14 @@ class Router(NetworkManager):
     def handle_trace(self, message):
         source = message.get("source")
         destination = message.get("destination")
+        message["routers"] = message["routers"].append(self.local_ip)
         routers = message.get("routers")
-        routers.append(self.local_ip)
-
+        
+        print(f"Trace from {source} to {destination}")
+        print(f"Routers: {(routers)}")
         if self.local_ip == destination:
             next_hop = self.routing_table[source][0]
-            message =self.message_handler.create_data_message(self.local_ip, source, routers)
+            message =self.message_handler.create_data_message(self.local_ip, source, message)
         
         else:
             next_hop = self.routing_table[destination][0]
@@ -105,6 +107,8 @@ class Router(NetworkManager):
                         
                     if weight < previous_weight:
                         self.routing_table[dst] = (source, weight)
+
+            print(self.routing_table)
         
         except Exception as e:
             logger.error(f"Erro ao atualizar rotas: {e}")

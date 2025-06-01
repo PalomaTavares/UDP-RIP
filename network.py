@@ -57,7 +57,6 @@ class NetworkManager:
         try:
             data = self.message_handler.encode(message)
             
-            print(dest_ip, PORT)
             self.socket.sendto(data, (dest_ip, PORT))
                 
             logger.debug(f"Mensagem enviada para {dest_ip}: {message['type']}")
