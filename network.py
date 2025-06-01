@@ -1,6 +1,5 @@
 import socket
 import threading
-import time
 import logging
 from messages import MessageHandler
 

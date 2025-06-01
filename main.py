@@ -2,8 +2,6 @@ import sys
 from network import NetworkManager
 from router import Router
 
-#TODO: clear prints
-
 def print_help():
     print("Available commands:")
     print("  add <ip> <weight> - Add a neighbor")
@@ -14,23 +12,18 @@ def print_help():
 
 def handle_add(router, args):
     if len(args) != 2:
-        print("Usage: add <ip> <weight>")
         return
     ip, weight = args
-    if router.add_neighbor(ip, weight):
-        print(f"Added neighbor {ip} with weight {weight}")
+    router.add_neighbor(ip, weight)
 
 def handle_del(router, args):
     if len(args) != 1:
-        print("Usage: del <ip>")
         return
     ip = args[0]
-    if router.remove_neighbor(ip):
-        print(f"Removed neighbor {ip}")
+    router.remove_neighbor(ip)
 
 def handle_trace(router, args):
     if len(args) != 1:
-        print("Usage: trace <ip>")
         return
     ip = args[0]
     path = router.trace_route(ip)
@@ -60,7 +53,6 @@ def process_command(router, cmd, source=""):
         result = handler(router, cmd[1:])
         return result == "quit"
     else:
-        print(f"{source}Invalid command: {' '.join(cmd)}")
         print_help()
         return False
 
@@ -76,7 +68,6 @@ def process_startup_file(router, filepath):
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: python main.py <address> <period> [startup]")
         sys.exit(1)
 
     address = sys.argv[1]
@@ -88,7 +79,6 @@ def main():
 
     router = Router(address, period)
     router.start_server()
-    print(f"Router started at {address}")
     print_help()
 
     # Process startup commands if provided

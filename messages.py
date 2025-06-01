@@ -22,7 +22,7 @@ class MessageHandler:
             logger.error(f"Erro ao codificar mensagem: {e}")
             raise
     
-    #JSON para Python"
+    #JSON para Python
     def decode(self, data):
         try:
             json_str = data.decode('utf-8')
@@ -108,8 +108,8 @@ class MessageHandler:
         
         return True
     
+    #formata o log
     def format_message_for_log(self, message):
-        """Formata mensagem para log"""
         try:
             msg_type = message.get('type', 'unknown')
             sender = message.get('sender', 'unknown')

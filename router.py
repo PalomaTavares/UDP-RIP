@@ -11,24 +11,14 @@ PERIOD_TOLERANCE = 4
 
 class Router(NetworkManager):
     def __init__(self, local_ip, period):
-        
         super().__init__(local_ip)
-        
         self.period = period
-
         self.incoming_neighbors = []
-        
-        # {ip: weight}
-        self.neighbors = {}
+        self.neighbors = {}  # ip: weight
+        self.last_update = {} # ip: num_updates desde o ultimo vizinho
+        self.routing_table = defaultdict(lambda: (None, float('inf')))# dest: (next_hop, cost)
+        self.lock = threading.Lock()#Add this line for thread safety
 
-        # {ip: num_updates since last neighbor update}
-        self.last_update = {}
-
-        # {dest: (next_hop, cost)}
-        self.routing_table = defaultdict(lambda: (None, float('inf')))
-        
-        # Add this line for thread safety
-        self.lock = threading.Lock()
 
     def send_update_messages(self):
         while True:
@@ -69,14 +59,12 @@ class Router(NetworkManager):
     def handle_trace(self, message):
         source = message.get("source")
         destination = message.get("destination")
-        message["routers"] = message["routers"].append(self.local_ip)
         routers = message.get("routers")
-        
-        print(f"Trace from {source} to {destination}")
-        print(f"Routers: {(routers)}")
+        routers.append(self.local_ip)
+
         if self.local_ip == destination:
             next_hop = self.routing_table[source][0]
-            message =self.message_handler.create_data_message(self.local_ip, source, message)
+            message =self.message_handler.create_data_message(self.local_ip, source, routers)
         
         else:
             next_hop = self.routing_table[destination][0]
@@ -93,22 +81,20 @@ class Router(NetworkManager):
 
         try:
             with self.lock:
-                # udate last_update counter
+                # update last_update
                 self.last_update[source] = 0
                 
-                # insert neighbor link
+                # link do vizinho
                 if link_weight < self.routing_table[source][1]:
                     self.routing_table[source] = (source, link_weight)
 
-                # insert dst_link
+                # insere dst_link
                 for dst, (next_hop, dst_weight) in distances.items():
                     weight = link_weight + dst_weight
                     previous_weight = self.routing_table[dst][1]
                         
                     if weight < previous_weight:
                         self.routing_table[dst] = (source, weight)
-
-            print(self.routing_table)
         
         except Exception as e:
             logger.error(f"Erro ao atualizar rotas: {e}")
@@ -154,31 +140,31 @@ class Router(NetworkManager):
     def add_neighbor(self, neighbor_ip, weight):
         if neighbor_ip == self.local_ip:
             logger.error("Cannot add self as neighbor")
-            return False
+            return 
         
         if not neighbor_ip.startswith("127.0.1."):
             logger.error("Invalid IP address (must be in 127.0.1.0/24 range)")
-            return False
+            return 
         
         try:
             weight = float(weight)
             if weight <= 0:
                 logger.error("Weight must be positive")
-                return False
+                return 
                 
             message = self.message_handler.create_conection_message(self.local_ip, neighbor_ip, weight)
             if not self.send_message(neighbor_ip, message):
-                return False
+                return 
 
-            with self.lock:  # Use the lock for thread-safe operations
+            with self.lock:  #lock para thread-safe
                 self.incoming_neighbors.append(neighbor_ip)
                 
             logger.info(f"Added neighbor {neighbor_ip} with weight {weight}")
-            return True
+            return 
             
         except ValueError:
             logger.error("Invalid weight (must be a number)")
-            return False
+            return 
     
     #TODO: check if we should warn neighbors about disconnections already or wait tolerance
     def remove_neighbor(self, neighbor_ip):
@@ -189,9 +175,9 @@ class Router(NetworkManager):
                     
                     logger.info(f"Vizinho {neighbor_ip} removido")
                     
-                    return True
+                    return 
                 else:
-                    return False
+                    return 
                     
         except Exception as e:
             logger.error(f"Erro ao remover vizinho {neighbor_ip}: {e}")
@@ -204,12 +190,12 @@ class Router(NetworkManager):
         next_hop = self.get_next_hop(destination)
         self.send_message(next_hop, message)
 
-    #Retorna cópia da tabela de vizinhos
+    #Retorna copia da tabela de vizinhos
     def get_neighbors(self):
         with self.lock:
             return self.neighbors.copy()
     
-    #Retorna próximo salto para destino
+    #Retorna proximo salto para destino
     def get_next_hop(self, destination):
         with self.lock:
             return self.routing_table[destination][0]
