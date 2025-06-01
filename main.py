@@ -34,10 +34,6 @@ def handle_trace(router, args):
         return
     ip = args[0]
     path = router.trace_route(ip)
-    if path:
-        print(f"Trace to {ip}: {', '.join(path)}")
-    else:
-        print(f"No route found to {ip}")
 
 def handle_list(router, args):
     neighbors = router.get_neighbors()
