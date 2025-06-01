@@ -56,10 +56,8 @@ class NetworkManager:
     def send_message(self, dest_ip, message):
         try:
             data = self.message_handler.encode(message)
-
-            if dest_ip not in self.neighbors:
-                raise Exception("Destino desconectado")
             
+            print(dest_ip, PORT)
             self.socket.sendto(data, (dest_ip, PORT))
                 
             logger.debug(f"Mensagem enviada para {dest_ip}: {message['type']}")
