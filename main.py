@@ -2,14 +2,6 @@ import sys
 from network import NetworkManager
 from router import Router
 
-def print_help():
-    print("Available commands:")
-    print("  add <ip> <weight> - Add a neighbor")
-    print("  del <ip>          - Remove a neighbor")
-    print("  trace <ip>        - Trace route to destination")
-    print("  list              - List current neighbors")
-    print("  quit              - Exit the program")
-
 def handle_add(router, args):
     if len(args) != 2:
         return
@@ -53,7 +45,6 @@ def process_command(router, cmd, source=""):
         result = handler(router, cmd[1:])
         return result == "quit"
     else:
-        print_help()
         return False
 
 def process_startup_file(router, filepath):
@@ -79,7 +70,6 @@ def main():
 
     router = Router(address, period)
     router.start_server()
-    print_help()
 
     # Process startup commands if provided
     if len(sys.argv) > 3:
@@ -87,7 +77,7 @@ def main():
 
     try:
         while True:
-            cmd = input(f"{address}> ").strip().split()
+            cmd = input().strip().split()
             if process_command(router, cmd):
                 break
     except (KeyboardInterrupt, EOFError):

@@ -54,6 +54,9 @@ class NetworkManager:
     #Envia mensagem UDP para destino
     def send_message(self, dest_ip, message):
         try:
+            if dest_ip is None:
+                return False
+
             data = self.message_handler.encode(message)
             
             self.socket.sendto(data, (dest_ip, PORT))
