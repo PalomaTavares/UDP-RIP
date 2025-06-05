@@ -14,15 +14,14 @@ class MessageHandler:
             data = json_str.encode('utf-8')
             
             if len(data) > self.max_message_size:
-                logger.warning(f"Mensagem muito grande: {len(data)} bytes")
+                logger.warning(f"Message too big: {len(data)} bytes")
             
             return data
             
         except Exception as e:
-            logger.error(f"Erro ao codificar mensagem: {e}")
+            logger.error(f"Error encoding message: {e}")
             raise
     
-    #JSON para Python
     def decode(self, data):
         try:
             json_str = data.decode('utf-8')
@@ -30,15 +29,15 @@ class MessageHandler:
             
             # Validação básica da estrutura
             if not isinstance(message, dict):
-                raise ValueError("Mensagem deve ser um dicionário JSON")
+                raise ValueError("Message should be a dictionary")
             
-            if 'type' not in message:
-                raise ValueError("Mensagem deve ter campo 'type'")
+            if 'type' not in message or 'source' not in message or 'destination' not in message:
+                raise ValueError("Missing fields in message")
             
             return message
             
         except Exception as e:
-            logger.error(f"Erro ao decodificar mensagem: {e}")
+            logger.error(f"Error decoding message: {e}")
             raise
     
     def create_conection_message(self, src_ip, dst_ip, weight):
@@ -79,51 +78,3 @@ class MessageHandler:
             'destination': dst_ip,
             'routers': routers
         }
-    
-    def validate_message(self, message):
-        required_fields = ['type', 'source', 'destination']
-        
-        for field in required_fields:
-            if field not in message:
-                raise ValueError(f"Campo obrigatório ausente: {field}")
-        
-        # Validações específicas por tipo
-        msg_type = message['type']
-        
-        if msg_type == "data":
-            if 'payload' not in message:
-                raise ValueError("Mensagem data deve ter campo 'payload'")
-            
-        elif msg_type == 'update':
-            if 'distances' not in message:
-                raise ValueError("Mensagem route_update deve ter campo 'routes'")
-            if not isinstance(message['routes'], dict):
-                raise ValueError("Campo 'routes' deve ser um dicionário")
-        
-        elif msg_type == 'trace':
-            required = ['destination', 'trace_id', 'path']
-            for field in required:
-                if field not in message:
-                    raise ValueError(f"trace_request deve ter campo '{field}'")
-        
-        return True
-    
-    #formata o log
-    def format_message_for_log(self, message):
-        try:
-            msg_type = message.get('type', 'unknown')
-            sender = message.get('sender', 'unknown')
-            
-            if msg_type == 'update':
-                routes_count = len(message.get('routes', {}))
-                return f"{msg_type} from {sender} ({routes_count} routes)"
-            
-            elif msg_type == 'trace':
-                dest = message.get('destination', message.get('trace_id', 'unknown'))
-                return f"{msg_type} from {sender} (dest: {dest})"
-            
-            else:
-                return f"{msg_type} from {sender}"
-                
-        except Exception:
-            return str(message)[:100] + "..." if len(str(message)) > 100 else str(message)
