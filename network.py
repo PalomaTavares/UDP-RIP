@@ -29,20 +29,18 @@ class NetworkManager:
 
             except Exception as e:
                 if self.running:
-                    logger.error(f"Erro ao receber mensagem: {e}")
+                    logger.error(f"Error receiving message: {e}")
 
     def start_server(self):
         self.running = True
         threading.Thread(target=self.receive_loop, daemon=True).start()
 
 
-    #para o servidor UDP
     def stop_server(self):
         self.running = False
         self.cleanup_socket()
-        logger.info("Servidor UDP parado")
+        logger.info("Stopping server...")
 
-    #fechando socket
     def cleanup_socket(self):
         if self.socket:
             try:
@@ -51,16 +49,18 @@ class NetworkManager:
                 pass
             self.socket = None
     
-    #Envia mensagem UDP para destino
     def send_message(self, dest_ip, message):
         try:
+            if dest_ip is None:
+                return False
+
             data = self.message_handler.encode(message)
             
             self.socket.sendto(data, (dest_ip, PORT))
                 
-            logger.debug(f"Mensagem enviada para {dest_ip}: {message['type']}")
+            logger.debug(f"Message sent to {dest_ip}: {message['type']}")
             return True
             
         except Exception as e:
-            logger.error(f"Erro ao enviar mensagem para {dest_ip}: {e}")
+            logger.error(f"Error sending message to {dest_ip}: {e}")
             return False
