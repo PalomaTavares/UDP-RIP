@@ -58,7 +58,7 @@ class Router(NetworkManager):
             routes_to_remove = []
             for dst, (next_hop, _) in self.routing_table.items():
                 
-                if next_hop == neighbor_ip:
+                if next_hop in to_remove_neighbors:
                     routes_to_remove.append(dst)
 
             for dst in routes_to_remove:
