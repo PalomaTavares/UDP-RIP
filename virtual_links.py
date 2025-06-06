@@ -7,7 +7,7 @@ from network import NetworkManager
 logger = logging.getLogger(__name__)
 
 PERIOD_TOLERANCE = 4
-INFINITY_THRESHOLD = 20
+INFINITY_THRESHOLD = 100
 
 class Router(NetworkManager):
     def __init__(self, local_ip, period):
@@ -82,7 +82,7 @@ class Router(NetworkManager):
 
         else:
             destination = message.get("destination")
-            next_hop = self.routing_table.get(destination, (None, float('inf')))[0]
+            next_hop = self.get_next_hop(destination)
             self.send_message(next_hop, message)
 
     def handle_trace(self, message):
